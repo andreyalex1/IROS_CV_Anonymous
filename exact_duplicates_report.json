@@ -1,0 +1,11 @@
+{
+  "total_images": 6147,
+  "unique_hashes": 6147,
+  "duplicate_groups": 0,
+  "total_duplicate_files": 0,
+  "extra_copies": 0,
+  "cross_split_duplicates": 0,
+  "within_split_duplicates": 0,
+  "cross_split_examples": [],
+  "within_split_examples": []
+}
