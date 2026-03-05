@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
-"""
-Eureka Navigation Library
-Library for autonomous rover navigation with visual target recognition.
 
-Developed as part of a research project on open libraries for autonomous
-navigation of a six-wheeled rover prototype in moderately rough unknown
-terrain with visual recognition of navigation targets.
-"""
+
 
 from dataclasses import dataclass
 from typing import List, Tuple, Optional
@@ -24,21 +18,21 @@ from calibration_config import (
 
 
 # ═══════════════════════════════════════════════════════════════════
-# PUBLIC DATA CLASSES
+# ПУБЛИЧНЫЕ КЛАССЫ ДАННЫХ
 # ═══════════════════════════════════════════════════════════════════
 
 @dataclass
 class DetectionResult:
     """
-    Result of navigation object detection.
+    Результат распознавания навигационного объекта.
 
     Attributes:
-        object_type: Type of object ("arrow" for arrow, "cone" for cone)
-        direction: Direction ("left", "right", "none")
-        distance_m: Distance to the object in meters
-        angle_deg: Angle relative to the camera center in degrees
-        confidence: Detection confidence (0.0 - 1.0)
-        bbox: Bounding box (x1, y1, x2, y2)
+        object_type: Тип объекта ("arrow" для стрелки, "cone" для конуса)
+        direction: Направление ("left", "right", "none")
+        distance_m: Расстояние до объекта в метрах
+        angle_deg: Угол относительно центра камеры в градусах
+        confidence: Уверенность детекции (0.0 - 1.0)
+        bbox: Ограничивающий прямоугольник (x1, y1, x2, y2)
     """
     object_type: str
     direction: str
@@ -49,18 +43,18 @@ class DetectionResult:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# MAIN LIBRARY CLASS
+# ОСНОВНОЙ КЛАСС БИБЛИОТЕКИ
 # ═══════════════════════════════════════════════════════════════════
 
 class NavigationDetector:
     """
-    Detector of navigation objects for an autonomous rover.
+    Детектор навигационных объектов для автономного марсохода.
 
-    Provides detection of arrows and traffic cones with calibrated
-    measurement of distance and angle for integration with a localization module.
+    Обеспечивает распознавание стрелок и дорожных конусов с калиброванным
+    измерением расстояния и угла для передачи в модуль локализации.
     """
 
-    # Filtering constants
+    # Константы фильтрации
     CONF_THRESHOLD = 0.5
     NMS_IOU_THRESHOLD = 0.4
     MIN_BOX_SIZE = 2
@@ -68,84 +62,84 @@ class NavigationDetector:
 
     def __init__(self, weights_path: str, device: str = None):
         """
-        Initialize the detector.
+        Инициализация детектора.
 
         Args:
-            weights_path: Path to the YOLO model weights file (.pt)
-            device: Inference device ('cuda', 'cpu', or None for automatic selection)
+            weights_path: Путь к файлу весов YOLO модели (.pt)
+            device: Устройство для инференса ('cuda', 'cpu', или None для автоопределения)
         """
         self.model = YOLO(str(weights_path))
 
-        # Automatically determine the device if not explicitly specified
+        # Автоопределение устройства если не задано явно
         if device is None:
             self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         else:
             self.device = device
 
-        # Explicitly move the model to the selected device
+        # Явно переносим модель на выбранное устройство
         self.model.to(self.device)
 
-        self._image_center_x = 320  # Default value for 640x480 images
+        self._image_center_x = 320  # По умолчанию для 640x480
 
     def detect_arrow(self, image: np.ndarray) -> List[DetectionResult]:
         """
-        Detect arrows and determine their direction.
+        Распознавание стрелок с определением направления.
 
-        The function detects arrows in the image and determines their direction
-        (left/right) for rover navigation.
+        Функция детектирует стрелки на изображении и определяет их направление
+        (left/right) для навигации ровера.
 
         Args:
-            image: Input image in BGR format (numpy array)
+            image: Входное изображение в формате BGR (numpy array)
 
         Returns:
-            List of DetectionResult objects containing arrows.
-            The direction field contains "left" or "right".
+            Список объектов DetectionResult со стрелками.
+            Поле direction содержит "left" или "right".
         """
         all_detections = self._detect_objects(image)
         return [d for d in all_detections if d.object_type == "arrow"]
 
     def detect_cone(self, image: np.ndarray) -> List[DetectionResult]:
         """
-        Detect traffic cones.
+        Распознавание дорожных конусов.
 
-        The function detects traffic cones in the image to identify
-        navigation targets.
+        Функция детектирует дорожные конусы на изображении для определения
+        целей навигации.
 
         Args:
-            image: Input image in BGR format (numpy array)
+            image: Входное изображение в формате BGR (numpy array)
 
         Returns:
-            List of DetectionResult objects containing cones.
-            The direction field for cones is always "none".
+            Список объектов DetectionResult с конусами.
+            Поле direction для конусов всегда "none".
         """
         all_detections = self._detect_objects(image)
         return [d for d in all_detections if d.object_type == "cone"]
 
     def detect_all(self, image: np.ndarray) -> List[DetectionResult]:
         """
-        Detect all navigation objects (arrows and cones).
+        Распознавание всех навигационных объектов (стрелки и конусы).
 
         Args:
-            image: Input image in BGR format (numpy array)
+            image: Входное изображение в формате BGR (numpy array)
 
         Returns:
-            List of all detected DetectionResult objects
+            Список всех обнаруженных объектов DetectionResult
         """
         return self._detect_objects(image)
 
     # ───────────────────────────────────────────────────────────────
-    # PRIVATE METHODS
+    # ПРИВАТНЫЕ МЕТОДЫ
     # ───────────────────────────────────────────────────────────────
 
     def _detect_objects(self, image: np.ndarray) -> List[DetectionResult]:
-        """Core object detection logic."""
+        """Основная логика детекции объектов."""
         h, w = image.shape[:2]
         self._image_center_x = w / 2
 
-        # Run YOLO inference on the selected device
+        # Запуск YOLO на заданном устройстве
         results = self.model(image, device=self.device)
 
-        # Extract bounding boxes
+        # Извлечение боксов
         boxes = []
         confs = []
         classes = []
@@ -156,10 +150,10 @@ class NavigationDetector:
             confs.append(float(b.conf.item()))
             classes.append(int(b.cls.item()))
 
-        # Filtering and NMS
+        # Фильтрация и NMS
         boxes, confs, classes = self._filter_boxes(boxes, confs, classes)
 
-        # Build detection results
+        # Формирование результатов
         detections = []
         for box, conf, cls in zip(boxes, confs, classes):
             x1, y1, x2, y2 = box
@@ -169,10 +163,10 @@ class NavigationDetector:
             if w_box <= 0 or h_box <= 0:
                 continue
 
-            # Determine object type (assumption: class 0 = arrow, class 1 = cone)
+            # Определение типа объекта (предполагаем: class 0 = arrow, class 1 = cone)
             object_type = "arrow" if cls == 0 else "cone"
 
-            # Determine direction for arrows
+            # Определение направления для стрелок
             direction = "none"
             if object_type == "arrow":
                 roi = image[y1:y2, x1:x2]
@@ -180,10 +174,10 @@ class NavigationDetector:
                 if direction is None:
                     direction = "none"
 
-            # Calibrated distance measurement (depends on object type)
+            # Калиброванное измерение расстояния (с учетом типа объекта)
             distance_m, _ = get_distance_from_pixels(w_box, h_box, use_width=True, object_type=object_type)
 
-            # Angle measurement
+            # Измерение угла
             bx = (x1 + x2) / 2
             angle_deg = get_angle_from_position(bx, self._image_center_x)
 
@@ -200,7 +194,7 @@ class NavigationDetector:
         return detections
 
     def _filter_boxes(self, boxes, confs, classes):
-        """Filter bounding boxes by confidence, size, and apply NMS."""
+        """Фильтрация боксов по confidence, размеру и NMS."""
         filtered_boxes = []
         filtered_confs = []
         filtered_classes = []
@@ -227,7 +221,7 @@ class NavigationDetector:
     @staticmethod
     def _compute_iou(box1: Tuple[int, int, int, int],
                      box2: Tuple[int, int, int, int]) -> float:
-        """Compute IoU between two bounding boxes."""
+        """Вычисление IoU между двумя боксами."""
         x1_1, y1_1, x2_1, y2_1 = box1
         x1_2, y1_2, x2_2, y2_2 = box2
 
@@ -244,7 +238,7 @@ class NavigationDetector:
         return inter_area / union_area if union_area > 0 else 0
 
     def _non_maximum_suppression(self, boxes, confs, classes):
-        """Non-Maximum Suppression to remove overlapping boxes."""
+        """Non-Maximum Suppression для удаления перекрывающихся боксов."""
         if not boxes:
             return [], [], []
 
@@ -272,12 +266,12 @@ class NavigationDetector:
     @staticmethod
     def _arrow_direction_pca(roi: np.ndarray) -> Optional[str]:
         """
-        Determine arrow direction using PCA with heuristics.
+        Определение направления стрелки методом PCA с эвристиками.
 
-        Uses majority voting from three heuristics:
-        1. Mass distribution (arrowhead contains more pixels)
-        2. Width gradient (arrowhead is wider)
-        3. Sharpness (the sharpest angle indicates the tip)
+        Использует мажоритарное голосование из трех эвристик:
+        1. Распределение массы (наконечник имеет больше пикселей)
+        2. Градиент ширины (наконечник шире)
+        3. Остроконечность (самый острый угол)
         """
         if roi.size == 0:
             return None
@@ -293,6 +287,78 @@ class NavigationDetector:
         if len(pts) < 5:
             return None
 
-        # PCA to determine the principal axis
+        # PCA для нахождения главной оси
         mean, evecs = cv2.PCACompute(pts, mean=None)
         long_ax, ortho = evecs
+
+        proj = (pts - mean) @ long_ax
+        i_min, i_max = np.argmin(proj), np.argmax(proj)
+        p_min, p_max = pts[i_min], pts[i_max]
+
+        votes = []
+
+        # Эвристика 1: Распределение массы
+        left_side = pts[pts[:, 0] < mean[0, 0]]
+        right_side = pts[pts[:, 0] >= mean[0, 0]]
+
+        if len(left_side) > 0 and len(right_side) > 0:
+            if len(left_side) > len(right_side):
+                votes.append('left')
+            else:
+                votes.append('right')
+
+        # Эвристика 2: Градиент ширины
+        num_samples = 5
+        proj_sorted = np.sort(proj)
+        widths = []
+        for i in range(num_samples):
+            idx = min(int(len(proj_sorted) * i / (num_samples - 1)), len(proj_sorted) - 1)
+            proj_val = proj_sorted[idx]
+            strip = np.abs(proj - proj_val) < 2.0
+            if strip.any():
+                width = np.ptp((pts[strip] - mean) @ ortho)
+                widths.append(width)
+
+        if len(widths) >= 3:
+            x = np.arange(len(widths))
+            slope = np.polyfit(x, widths, 1)[0]
+            if slope > 0:
+                votes.append('right')
+            else:
+                votes.append('left')
+
+        # Эвристика 3: Остроконечность
+        hull = cv2.convexHull(pts.astype(np.int32), returnPoints=True)
+        hull_pts = hull.reshape(-1, 2).astype(np.float32)
+
+        def find_hull_angle(p_extreme):
+            dists = np.linalg.norm(hull_pts - p_extreme, axis=1)
+            idx = np.argmin(dists)
+            n = len(hull_pts)
+            p1 = hull_pts[(idx - 1) % n]
+            p2 = hull_pts[idx]
+            p3 = hull_pts[(idx + 1) % n]
+            v1 = p1 - p2
+            v2 = p3 - p2
+            dot = np.dot(v1, v2)
+            norm = np.linalg.norm(v1) * np.linalg.norm(v2)
+            if norm > 0:
+                angle = np.arccos(np.clip(dot / norm, -1.0, 1.0))
+                return np.degrees(angle)
+            return 180.0
+
+        angle_min = find_hull_angle(p_min)
+        angle_max = find_hull_angle(p_max)
+
+        if angle_min < angle_max:
+            votes.append('left' if p_min[0] < p_max[0] else 'right')
+        else:
+            votes.append('left' if p_max[0] < p_min[0] else 'right')
+
+        # Мажоритарное голосование
+        if not votes:
+            return "right" if p_max[0] > p_min[0] else "left"
+
+        left_votes = votes.count('left')
+        right_votes = votes.count('right')
+        return 'left' if left_votes > right_votes else 'right'
